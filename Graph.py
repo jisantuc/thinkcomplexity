@@ -1,4 +1,6 @@
-class Graph(dict):
+import numpy as np
+
+class Graph(dict):    
     def __init__(self, vs = [], es = []):
         """create a new graph. (vs) is a list of vertices, (es) is a list of edges"""
         for v in vs:
@@ -28,8 +30,8 @@ class Graph(dict):
 
     def remove_edge(self,e):
         """removes all references to e"""
-        self[e[0]][e[1]] = {}
-        self[e[1]][e[0]] = {}
+        self[e[0]].pop(e[1])
+        self[e[1]].pop(e[0])
 
     def vertices(self):
         """returns list of vertices in graph"""
@@ -43,7 +45,41 @@ class Graph(dict):
                 out.append(self.get_edge(i,k))
         return [o for o in out if o is not None]
 
-#number 7: out_vertices
+    def out_vertices(self, vertex):
+        """returns list of adjacent vertices"""
+        return self[vertex].keys()
+
+    def out_edges(self, vertex):
+        """returns list of all edges connected to vertex"""
+        return [self[vertex][k] for k in self[vertex].keys()]
+
+    def add_all_edges(self):
+        for u in self.vertices():
+            for v in [vert for vert in self.vertices() if vert != u]:
+                if self.get_edge(u,v) is None:
+                    self.add_edge((u,v))
+
+    def degree(self):
+        """returns degree of graph"""
+        return len(self.vertices())
+
+    def least_conn(self):
+        """finds the vertex with the fewest connections"""
+        minimum = min([len(self.out_edges(v)) for v in self.vertices()])
+        return [v for v in self.vertices() if len(self.out_edges(v)) == minimum]
+    
+    def add_regular_edges(self, order):
+        """starts with an edgeless graph and adds order edges to every vertex
+           fails if regular graph can't be drawn or if graph is not edgeless"""        
+        if len(self.edges()) != 0:
+            print 'Graph is not edgeless'
+        elif self.degree() >= order + 1 and (self.degree() * order) % 2 == 0:
+            for v in self.vertices():
+                while(len(self.out_edges(v)) < order):
+                    other = np.random.choice([vert for vert in self.least_conn() if vert != v and self.get_edge(v, vert) is None])
+                    self.add_edge((v,other))
+        else:
+            print 'No {0}-regular graph exists for degree {1}'.format(order, self.degree())
 
 class Vertex(object):
     def __init__(self, label = ''):
