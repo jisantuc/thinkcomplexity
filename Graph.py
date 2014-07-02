@@ -1,4 +1,5 @@
 import numpy as np
+import string
 
 class Graph(dict):    
     def __init__(self, vs = [], es = []):
@@ -80,6 +81,19 @@ class Graph(dict):
                     self.add_edge((v,other))
         else:
             print 'No {0}-regular graph exists for degree {1}'.format(order, self.degree())
+
+class RandomGraph(Graph):
+    def add_random_edges(self,p):
+        """adds edges to an edgeless graph between any two vertices with probability p"""
+        if len(self.edges()) == 0:
+            start = self.vertices()
+            while(len(start) > 1):
+                v = start.pop(0)
+                for u in start:
+                    if np.random.uniform() < p:
+                        self.add_edge((v, u))
+        else:
+            print "Graph was not edgeless."
 
 class Vertex(object):
     def __init__(self, label = ''):
