@@ -82,6 +82,24 @@ class Graph(dict):
         else:
             print 'No {0}-regular graph exists for degree {1}'.format(order, self.degree())
 
+    def is_connected(self):
+        start = np.random.choice(self.vertices())
+        queue = [start]
+        conn = []
+        while(len(queue) > 0):
+            popped = queue.pop()
+            popped.mark()
+            conn = conn + [popped]
+            queue = queue + [v for v in self.out_vertices(popped) if v not in queue and not v.marked]
+        if len(conn) == len(self.vertices()):
+            return True
+        elif len(conn) > len(self.vertices()):
+            print "This should never have happened something is terribly wrong."
+        else:
+            for v in self.vertices():
+                v.unmark()         
+            return False
+
 class RandomGraph(Graph):
     def add_random_edges(self,p):
         """adds edges to an edgeless graph between any two vertices with probability p"""
@@ -98,11 +116,18 @@ class RandomGraph(Graph):
 class Vertex(object):
     def __init__(self, label = ''):
         self.label = label
+        self.marked = False
 
     def __repr__(self):
         return 'Vertex({0})'.format(repr(self.label))
 
     __str__ = __repr__
+
+    def mark(self):
+        self.marked = True
+
+    def unmark(self):
+        self.marked = False
 
 class Edge(tuple):
     def __new__(cls, e1, e2):

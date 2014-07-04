@@ -1,18 +1,19 @@
-#from Graph import *
+from Graph import *
 from GraphWorld import *
 import string
 from pprint import pprint
-from RandomGraph import RandomGraph
 
 labels = string.ascii_lowercase
-n_vertices = 10
+n_vertices = 20
 vs = [Vertex(v) for v in labels[:n_vertices]]
 
-g = RandomGraph(vs)
+g = Graph(vs)
 
-g.add_random_edges(0.2)
+g.add_regular_edges(2)
 layout = CircleLayout(g)
 
+
+print g.is_connected()
 gw = GraphWorld()
 gw.show_graph(g, layout)
 gw.mainloop()
