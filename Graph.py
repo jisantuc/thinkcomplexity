@@ -137,3 +137,45 @@ class Edge(tuple):
         return 'Edge({0}, {1})'.format(repr(self[0]), repr(self[1]))
 
     __str__ = __repr__
+
+class DoublyLinkedList(Graph):
+    def __init__(self, nodes = []):
+        self.stop = DoublyLinkedNode(label = 'stop')
+        nodes = [self.stop] + nodes
+
+        for n in nodes:
+            self.add_vertex(n)
+
+        for i, n in enumerate(nodes):
+            if i != len(nodes) - 1:
+                n.foll = nodes[i+1]
+                n.prec = nodes[i-1]
+            else:
+                n.foll = self.stop
+                n.prec = nodes[i-1]
+
+        for n in nodes:
+            self.add_edge((n,n.foll))
+
+    def append(self, node):
+        self.remove_edge((self.stop, self.stop.prec))
+        self.add_vertex(node)
+        self.add_edge((self.stop.prec, node))
+        self.add_edge((node, self.stop))
+        self.stop.prec = node
+
+    def pop(self):
+        popped = self.stop.foll
+        for e in self.out_edges(popped):
+            self.remove_edge(e)
+        self.add_edge((self.stop, popped.foll))
+        self.stop.foll = popped.foll
+        return popped
+        
+
+
+class DoublyLinkedNode(Vertex):
+    def __init__(self, label = '', prec = None, foll = None):
+        self.label = label
+        self.prec = prec
+        self.foll = foll
