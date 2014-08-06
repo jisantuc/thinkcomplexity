@@ -1,5 +1,8 @@
 import numpy as np
 import string
+import matplotlib.pyplot as plt
+import seaborn as sns
+from math import ceil
 
 class Graph(dict):    
     def __init__(self, vs = [], es = []):
@@ -77,7 +80,10 @@ class Graph(dict):
         elif self.degree() >= order + 1 and (self.degree() * order) % 2 == 0:
             for v in self.vertices():
                 while(len(self.out_edges(v)) < order):
-                    other = np.random.choice([vert for vert in self.least_conn() if vert != v and self.get_edge(v, vert) is None])
+                    try:
+                        other = np.random.choice([vert for vert in self.least_conn() if vert != v and self.get_edge(v, vert) is None])
+                    except(ValueError):
+                        other = np.random.choice([vert for vert in self.vertices() if vert != v and len(self.out_edges(vert)) <= order])
                     self.add_edge((v,other))
         else:
             print 'No {0}-regular graph exists for degree {1}'.format(order, self.degree())
@@ -112,6 +118,65 @@ class RandomGraph(Graph):
                         self.add_edge((v, u))
         else:
             print "Graph was not edgeless."
+
+class SmallWorldGraph(Graph):
+    def __init__(self, vs = [], degree = 2):
+        for v in vs:
+            self.add_vertex(v)
+        self.add_regular_edges(degree)
+        self.degree = 2
+
+    def rewire(self, p):
+        edges_to_add = []        
+        for e in self.edges():
+            try:
+                if np.random.uniform() < p and e not in edges_to_add:
+                    source = e[0]
+                    term = e[1]
+                    new_term = np.random.choice([v for v in self.vertices() if v != term and v != source])
+                    edges_to_add.append(Edge(source, new_term))
+                    print 'rewiring edge ({0},{1})...'.format(source,term)
+                    self.remove_edge(e)
+                else:
+                    pass #showing explicitly that values below p result in doing nothing
+            except(KeyError):
+                pass
+        for e in edges_to_add:
+            self.add_edge(e)
+
+    def connection_perc(self, v):
+        return len(self.out_edges(v))/float(len(self.vertices()))
+
+    def clustering_coefficient(self, normalized = False):
+        c_v = np.array([self.connection_perc(v) for v in self.vertices()])
+        
+        if normalized:
+            comp_graph = SmallWorldGraph(vs = self.vertices(), degree = self.degree)
+            c_0 = comp_graph.clustering_coefficient()
+            print 'c_0 = {0}'.format(c_0)
+            return c_v.mean()/comp_graph.clustering_coefficient()
+        else:        
+            return c_v.mean()
+
+
+    def graph_clustering_coefficient(self):
+        x = np.array([p for p in np.linspace(0.001,0.3,300)])
+        y = list()
+        
+        for p in x:
+            base = self
+            base.rewire(p)
+            y = y + [base.clustering_coefficient(normalized = True)]
+        y = np.array(y)
+            
+        plotted = plt.plot(x,y, 'ro')
+        plt.title('Clustering coefficient for varying values of p')
+        plt.xlabel('Probability of rewire')
+        plt.ylabel('Clustering Coefficient')
+        plt.axis([0.,0.3,0.,ceil(y.max())])
+        plt.show()
+        
+        
 
 class Vertex(object):
     def __init__(self, label = ''):
