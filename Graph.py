@@ -3,6 +3,7 @@ import string
 import matplotlib.pyplot as plt
 import seaborn as sns
 from math import ceil
+from pprint import pprint
 
 class Graph(dict):    
     def __init__(self, vs = [], es = []):
@@ -98,6 +99,8 @@ class Graph(dict):
             conn = conn + [popped]
             queue = queue + [v for v in self.out_vertices(popped) if v not in queue and not v.marked]
         if len(conn) == len(self.vertices()):
+            for v in self.vertices():
+                v.unmark()
             return True
         elif len(conn) > len(self.vertices()):
             print "This should never have happened something is terribly wrong."
@@ -124,7 +127,7 @@ class SmallWorldGraph(Graph):
         for v in vs:
             self.add_vertex(v)
         self.add_regular_edges(degree)
-        self.degree = 2
+        self.degree = degree
 
     def rewire(self, p):
         edges_to_add = []        
@@ -158,8 +161,49 @@ class SmallWorldGraph(Graph):
         else:        
             return c_v.mean()
 
+    def new_queue(self, run):
+        opts = {vert for vert in self.vertices() if vert.distance == run}
+        queue = []
+        while opts:
+            try:            
+                v = opts.pop()
+                queue += [vert for vert in self.out_vertices(v) if vert.distance > run and vert not in queue]
+                #pprint(queue)
+            except IndexError:
+                pass
+        return queue
 
-    def graph_clustering_coefficient(self):
+
+    def Dijkstra(self):
+        
+        if self.is_connected():
+            v = self.least_conn().pop()
+            v.distance = 0
+            d = {vert: vert.distance for vert in self.vertices() if vert.distance != float('inf')}
+
+            queue = self.out_vertices(v)
+            run = 1
+
+            while len(d) < len(self.vertices()) - 1:
+                while queue:
+                    q = queue.pop()
+                    q.set_distance(run)
+
+                d = {vert:vert.distance for vert in self.vertices() if vert.distance != float('inf')}
+                queue = self.new_queue(run)
+
+                run = run + 1
+
+            for vert in self.vertices():
+                vert.distance = float('inf')
+
+            return sum(d.values()) / (len(d.values()) - 1.)
+
+        else:
+            print 'Graph is not connected.'
+            return None
+
+    def sw_plot(self):
         x = np.array([p for p in np.linspace(0.001,0.3,300)])
         y = list()
         
@@ -168,13 +212,13 @@ class SmallWorldGraph(Graph):
             base.rewire(p)
             y = y + [base.clustering_coefficient(normalized = True)]
         y = np.array(y)
+        y = y/y.max()
             
         plotted = plt.plot(x,y, 'ro')
         plt.title('Clustering coefficient for varying values of p')
         plt.xlabel('Probability of rewire')
         plt.ylabel('Clustering Coefficient')
         plt.axis([0.,0.3,0.,ceil(y.max())])
-        plt.show()
         
         
 
@@ -182,6 +226,7 @@ class Vertex(object):
     def __init__(self, label = ''):
         self.label = label
         self.marked = False
+        self.distance = float('inf')
 
     def __repr__(self):
         return 'Vertex({0})'.format(repr(self.label))
@@ -193,6 +238,12 @@ class Vertex(object):
 
     def unmark(self):
         self.marked = False
+
+    def set_distance(self, d):
+        self.distance = d
+
+    def clear_distance(self):
+        self.distance = float('inf')
 
 class Edge(tuple):
     def __new__(cls, e1, e2):

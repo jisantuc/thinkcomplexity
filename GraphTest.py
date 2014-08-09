@@ -4,12 +4,13 @@ import string
 from pprint import pprint
 
 labels = string.ascii_lowercase
-n_vertices = 1000
+n_vertices = 26
 vs = [Vertex(v) for v in labels[:n_vertices]]
 
-for n in range(1,11):
-    sw = SmallWorldGraph(vs = vs, degree = n)
-    sw.graph_clustering_coefficient()
+sw = SmallWorldGraph(vs = vs, degree = 5)
+sw.rewire(0.02)
+
+print sw.Dijkstra()
 
 #g = Graph(vs)
 
