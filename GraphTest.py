@@ -2,20 +2,21 @@ from Graph import *
 from GraphWorld import *
 import string
 from pprint import pprint
+import numpy as np
 
-labels = string.ascii_lowercase
-n_vertices = 26
-vs = [Vertex(v) for v in labels[:n_vertices]]
+#labels = string.ascii_lowercase
+n_vertices = 50
+labels = range(n_vertices)
+vs = [Vertex(str(v)) for v in labels]
 
 sw = SmallWorldGraph(vs = vs, degree = 5)
-sw.rewire(0.02)
 
-print sw.Dijkstra()
+sw.sw_plot(0.1)
 
-#g = Graph(vs)
+"""#g = Graph(vs)
 
 #g.add_regular_edges(2)
-"""layout = CircleLayout(sw)
+layout = CircleLayout(sw)
 
 
 #print g.is_connected()

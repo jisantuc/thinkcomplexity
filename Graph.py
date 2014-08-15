@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from math import ceil
 from pprint import pprint
+from collections import deque
 
 class Graph(dict):    
     def __init__(self, vs = [], es = []):
@@ -37,6 +38,12 @@ class Graph(dict):
         """removes all references to e"""
         self[e[0]].pop(e[1])
         self[e[1]].pop(e[0])
+
+    def remove_vertex(self, v):
+        self.pop(v)
+        for e in self.edges():
+            if v in e:
+                self.remove_edge(e)
 
     def vertices(self):
         """returns list of vertices in graph"""
@@ -90,24 +97,42 @@ class Graph(dict):
             print 'No {0}-regular graph exists for degree {1}'.format(order, self.degree())
 
     def is_connected(self):
-        start = np.random.choice(self.vertices())
-        queue = [start]
-        conn = []
-        while(len(queue) > 0):
-            popped = queue.pop()
-            popped.mark()
-            conn = conn + [popped]
-            queue = queue + [v for v in self.out_vertices(popped) if v not in queue and not v.marked]
-        if len(conn) == len(self.vertices()):
-            for v in self.vertices():
-                v.unmark()
-            return True
-        elif len(conn) > len(self.vertices()):
-            print "This should never have happened something is terribly wrong."
-        else:
-            for v in self.vertices():
-                v.unmark()         
-            return False
+        """Returns True if there is a path from any vertex to
+        any other vertex in this graph; False otherwise.
+        """
+        vs = self.vertices()
+        visited = self.bfs(vs[0])
+        return len(visited) == len(vs)
+
+    def bfs(self, s, visit=None):
+        """Breadth first search, starting with (s).
+        If (visit) is provided, it is invoked on each vertex.
+        Returns the set of visited vertices.
+        """
+        visited = set()
+
+        # initialize the queue with the start vertex
+        queue = deque([s])
+        
+        # loop until the queue is empty
+        while queue:
+
+            # get the next vertex
+            v = queue.popleft()
+
+            # skip it if it's already visited
+            if v in visited: continue
+
+            # mark it visited, then invoke the visit function
+            visited.add(v)
+            if visit: visit(v)
+
+            # add its out vertices to the queue
+            queue.extend(self.out_vertices(v))
+
+        # return the visited vertices
+        return visited
+
 
 class RandomGraph(Graph):
     def add_random_edges(self,p):
@@ -130,6 +155,7 @@ class SmallWorldGraph(Graph):
         self.degree = degree
 
     def rewire(self, p):
+        copy = SmallWorldGraph(vs = self.vertices(), degree = self.degree)
         edges_to_add = []        
         for e in self.edges():
             try:
@@ -146,20 +172,35 @@ class SmallWorldGraph(Graph):
                 pass
         for e in edges_to_add:
             self.add_edge(e)
+        if self.is_connected():
+            pass
+        else:
+            self = SmallWorldGraph(vs = copy.vertices(), degree = copy.degree)
+            self.rewire(p)
 
     def connection_perc(self, v):
         return len(self.out_edges(v))/float(len(self.vertices()))
+    
+    def local_clust_coeff(self, v):
+        queue = self.out_vertices(v)
+        denom = float(len(queue) * (len(queue) - 1) / 2)
+        count = 0
+        for i,q in enumerate(queue):
+            check = [vert for vert in queue if vert != q and vert != v]
+            for c in check:
+                if Edge(q,c) in self.edges():
+                    count += 1
+            else:
+                pass
+        try:
+            return count/denom
+        except ZeroDivisionError:
+            print 'graph is not connected'
+            return 0
 
-    def clustering_coefficient(self, normalized = False):
-        c_v = np.array([self.connection_perc(v) for v in self.vertices()])
-        
-        if normalized:
-            comp_graph = SmallWorldGraph(vs = self.vertices(), degree = self.degree)
-            c_0 = comp_graph.clustering_coefficient()
-            print 'c_0 = {0}'.format(c_0)
-            return c_v.mean()/comp_graph.clustering_coefficient()
-        else:        
-            return c_v.mean()
+
+    def global_clust_coeff(self):
+        return np.array([self.local_clust_coeff(v) for v in self.vertices()]).mean()
 
     def new_queue(self, run):
         opts = {vert for vert in self.vertices() if vert.distance == run}
@@ -176,49 +217,56 @@ class SmallWorldGraph(Graph):
 
     def Dijkstra(self):
         
-        if self.is_connected():
-            v = self.least_conn().pop()
-            v.distance = 0
-            d = {vert: vert.distance for vert in self.vertices() if vert.distance != float('inf')}
+        v = self.least_conn().pop()
+        v.distance = 0
+        d = {vert: vert.distance for vert in self.vertices() if vert.distance != float('inf')}
 
-            queue = self.out_vertices(v)
-            run = 1
+        queue = self.out_vertices(v)
+        run = 1
 
-            while len(d) < len(self.vertices()) - 1:
-                while queue:
-                    q = queue.pop()
-                    q.set_distance(run)
+        while len(d) < len(self.vertices()) - 1:
+            while queue:
+                q = queue.pop()
+                q.set_distance(run)
 
-                d = {vert:vert.distance for vert in self.vertices() if vert.distance != float('inf')}
-                queue = self.new_queue(run)
+            d = {vert:vert.distance for vert in self.vertices() if vert.distance != float('inf')}
+            queue = self.new_queue(run)
 
-                run = run + 1
+            run = run + 1
 
-            for vert in self.vertices():
-                vert.distance = float('inf')
+        for vert in self.vertices():
+            vert.distance = float('inf')
 
-            return sum(d.values()) / (len(d.values()) - 1.)
-
-        else:
-            print 'Graph is not connected.'
-            return None
-
-    def sw_plot(self):
-        x = np.array([p for p in np.linspace(0.001,0.3,300)])
-        y = list()
+        return sum(d.values()) / (len(d.values()) - 1.)
+    
+    def sw_plot(self, max_p):
+        x = np.array([p for p in np.linspace(0.001,max_p,100)])
+        y_c = list()
+        y_p = list()
         
         for p in x:
-            base = self
+            base = SmallWorldGraph(vs = self.vertices(), degree = self.degree)
             base.rewire(p)
-            y = y + [base.clustering_coefficient(normalized = True)]
-        y = np.array(y)
-        y = y/y.max()
+            try:
+                y_c = y_c + [base.global_clust_coeff()]
+            except(ZeroDivisionError):
+                print "Graph is not connected"
+                return
+            #y_p = y_p + [base.Dijkstra()]
+
+        y_c = np.array(y_c)
+        y_c = y_c/y_c.max()
+        #y_p = np.array(y_p)
+        #y_p = y_p/y_p.max()
             
-        plotted = plt.plot(x,y, 'ro')
-        plt.title('Clustering coefficient for varying values of p')
+        plt.plot(x,y_c, 'ro')
+        #plt.plot(x,y_p, 'b^')
+        plt.title('Clustering coefficient\n and average path length\nfor varying values of p')
         plt.xlabel('Probability of rewire')
-        plt.ylabel('Clustering Coefficient')
-        plt.axis([0.,0.3,0.,ceil(y.max())])
+        plt.ylabel('Clustering Coefficient, Average Path Length')
+        plt.axis([0.,max_p,0.,1])
+
+        plt.show()
         
         
 
